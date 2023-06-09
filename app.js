@@ -1230,7 +1230,7 @@ function get_resource_from_url(connection, ri, sri, option, callback) {
                     var la_id = 'select_latest_resource ' + targetObject[rootnm].ri + ' - ' + require('shortid').generate();
                     console.time(la_id);
                     var latestObj = [];
-                    db_sql.select_latest_resource(connection, targetObject[rootnm], 0, latestObj, (code) => {
+                    db_sql.select_latest_resource(connection, targetObject[rootnm], latestObj, (code) => {
                         console.timeEnd(la_id);
                         if (code === '200') {
                             if (latestObj.length == 1) {

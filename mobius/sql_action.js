@@ -1673,6 +1673,8 @@ exports.search_lookup = function (connection, ri, query, cur_lim, pi_list, pi_in
     });
 };
 
+/*
+// 20230609 modified by sangjin not to compare with the current time and to remove loop process
 exports.select_latest_resource = function(connection, parentObj, loop_count, latestObj, callback) {
     if(loop_count > 9) {
         callback('200');
@@ -1701,6 +1703,27 @@ exports.select_latest_resource = function(connection, parentObj, loop_count, lat
                 _this.select_latest_resource(connection, parentObj, ++loop_count, latestObj, function (code) {
                     callback(code);
                 });
+            }
+        }
+        else {
+            callback('500-1');
+        }
+    });
+};
+*/
+
+exports.select_latest_resource = function(connection, parentObj, latestObj, callback) {
+    var query_where = ' and ty = \'' + (parseInt(parentObj.ty, 10) + 1).toString() + '\' order by ct desc limit 1';
+    var sql = 'select * from (select * from lookup where (pi = \'' + parentObj.ri + '\') ' + query_where + ')b join ' + responder.typeRsrc[parseInt(parentObj.ty, 10) + 1] + ' as a on b.ri = a.ri';
+    db.getResult(sql, connection, (err, results_latest) => {
+        console.timeEnd('select_latest' + parentObj.ri);
+        if(!err) {
+            if(results_latest.length > 0) {
+                latestObj.push(results_latest[0]);
+                callback('200');
+            }
+            else {
+                callback('500-1');
             }
         }
         else {
