@@ -44,6 +44,7 @@ var tr = require('./tr');
 var security = require('./security');
 var db_sql = require('./sql_action');
 var cnt_man = require('./cnt_man');
+var tsdb_mqtt_client = require('./tsdb_mqtt');
 
 var _this = this;
 
@@ -563,6 +564,7 @@ function create_action(request, response, callback) {
                 }
             }
         });
+        tsdb_mqtt_client.publish('Smartcs/ITS/tsdb', JSON.stringify(resource_Obj[rootnm]));
     }
     else if (ty == '9') {
         db_sql.insert_grp(request.db_connection, resource_Obj[rootnm], function (err, results) {
