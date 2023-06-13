@@ -293,8 +293,6 @@ global.getType = function (p) {
 exports.get_cni_count = function(connection, obj, callback) {
     _this.select_count_ri(connection, parseInt(obj.ty, 10), obj.ri, function (err, results) {
         if (results.length == 1) {
-            // var cni = results[0]['cni'];
-            // var cbs = (results[0]['cbs'] == null) ? 0 : results[0]['sum(cin.cs)'];
             var cni = results[0]['count(*)'];
             var cbs = (results[0]['sum(cin.cs)'] == null) ? 0 : results[0]['sum(cin.cs)'];
             var st = (results[0]['st'] == null) ? 0 : results[0]['st'];
@@ -311,8 +309,13 @@ exports.get_cni_count = function(connection, obj, callback) {
                 else if (cbs > parseInt(obj.mbs, 10)) {
                     count = 1;
                 }
-
-                delete_oldest(connection, obj, count, function (err, results_oldest) { // select oldest
+                delete_oldest(connection, obj, count, function (err, results_oldest) {
+                    update_parent_by_delete_multiple_instances(connection, obj, cni, cbs, function (err, results) {
+                        if (err) {
+                            console.log(JSON.stringify(results));
+                            console.error(err);
+                        }
+                    });
                     if (results_oldest.affectedRows == count) {
                         _this.get_cni_count(connection, obj, function (cni, cbs, st) {
                             callback(cni, cbs, st);
@@ -2656,7 +2659,6 @@ exports.update_parent_by_insert = function (connection, obj, cs, callback) {
     var tableName = responder.typeRsrc[parseInt(obj.ty, 10)];
     var cni_id = 'update_parent_by_insert ' + obj.ri + ' - ' + require('shortid').generate();
     console.time(cni_id);
-    console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$', obj.st, obj.cni, obj.cbs, obj.mni);
     obj.cni += 1;
     if(obj.cni > obj.mni) {
         obj.cni = obj.mni;
@@ -2707,19 +2709,30 @@ exports.update_parent_st = function (connection, obj, callback) {
     });
 };
 
-exports.update_parent_by_delete = function (connection, obj, cs, callback) {
+function update_parent_by_delete_multiple_instances (connection, obj, count, size, callback) {
     var tableName = responder.typeRsrc[parseInt(obj.ty, 10)];
-    var cni_id = 'update_parent_by_insert ' + obj.ri + ' - ' + require('shortid').generate();
-    console.time(cni_id);
-    var sql = util.format('update %s, lookup set %s.cni = %s.cni-1, %s.cbs = %s.cbs-%s, lookup.st = lookup.st+1 where lookup.ri = \'%s\' and %s.ri = \'%s\'', tableName, tableName, tableName, tableName, tableName, cs, obj.ri, tableName,  obj.ri);
-    db.getResult(sql, connection, function (err, results) {
-        if (!err) {
-            console.timeEnd(cni_id);
-            callback(err, results);
+    var cni;
+    var cbs;
+    _this.select_count_ri(connection, parseInt(obj.ty, 10), obj.ri, function (err, results) {
+        if (results.length == 1) {
+            cni = (results[0]['count(*)'] == null) ? count : results[0]['count(*)'];
+            cbs = (results[0]['sum(cin.cs)'] == null) ? size : results[0]['sum(cin.cs)'];
         }
         else {
-            callback(err, results);
+            console.error(err);
         }
+        var cni_id = 'update_parent_by_delete_multiple_instances ' + obj.ri + ' - ' + require('shortid').generate();
+        console.time(cni_id);
+        var sql = util.format('update %s, lookup set %s.cni = %s, %s.cbs = %s, lookup.st = lookup.st+1 where lookup.ri = \'%s\' and %s.ri = \'%s\'', tableName, tableName, cni, tableName, cbs, obj.ri, tableName,  obj.ri);
+        db.getResult(sql, connection, function (err, results) {
+            if (!err) {
+                console.timeEnd(cni_id);
+                callback(err, results);
+            }
+            else {
+                callback(err, results);
+            }
+        });
     });
 };
 
